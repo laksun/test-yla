@@ -1,6 +1,6 @@
 # test-yla
 
-## Rabbot MQ
+## Rabbit MQ
 
 - https://www.rabbitmq.com/blue-green-upgrade.html
 
