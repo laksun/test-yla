@@ -1,0 +1,85 @@
+image:
+  name: registry.gitlab.com/example/example-smi/aws-tf-image
+
+variables:
+  TF_ROOT: $CI_PROJECT_DIR
+  AWS_DEFAULT_REGION: "eu-west-3"
+  TERRAFORM_PLAN_OUT_PATH: plan.out
+  TERRAFORM_PLAN_JSON_PATH: plan.json
+  REPO_URL: $CI_REPOSITORY_URL
+  ESB_ENVIRONMENT:
+    description: "Select the AWS environment"
+    value: ESBSandbox
+    options:
+      - ESBSandbox
+      - ESBTest
+  ESB_CONFIG_FILE: "$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT-backend.conf"
+  ESB_TFVARS_FILE: "$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT.tfvars"
+  ESB_S3TFVARS_FILE: "$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT-s3.tfvars"
+  ESB_TFVARS_RDS: "$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT-rds.tfvars"
+  ESB_INGRESS_PROPS: "env_vars/$ESB_ENVIRONMENT-ingress.properties"
+  TFKEYRDS: "$ESB_ENVIRONMENT-rds"
+  TFKEYINSTALL1: "$ESB_ENVIRONMENT-install1"
+  TFKEYGITLABROLE: "$ESB_ENVIRONMENT-gitlabrole"
+  env: "dev"
+  CLUSTER_PROPS: "$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT.properties"
+
+include:
+  - project: "example/example-smi/aws-tf-image"
+    file:
+      - "/smi/tenable.yml"
+      - "global/assume_role.yml"
+      - "global/tenable.yml"
+
+before_script:
+  - !reference [.assume-role]
+
+stages:
+  - stage1
+  - stage2
+
+plan:
+  stage: parallel-stage
+  script:
+    - pip install pandas openpyxl
+    - python utility/extract_ingress_rules.py  $ESB_INGRESS_PROPS
+    - python utility/process_csv.py $ESB_ENVIRONMENT
+    - cd mydir
+    - sed -e "s/\$KEY/${TFKEYVPC}/g" ${ESB_CONFIG_FILE} > temp.conf
+    - terraform init -backend-config=temp.conf
+    - ESB_TFVARS_INGRESS_FILE="$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT-ingress-rules.tfvars"
+    - terraform plan  --var-file="${ESB_TFVARS_FILE}" --var-file="$ESB_TFVARS_INGRESS_FILE"  -out $TERRAFORM_PLAN_OUT_PATH
+  environment:
+    name: $ESB_ENVIRONMENT
+  when: manual
+  allow_failure: false
+  artifacts:
+    paths:
+      - modified_file.csv
+      - extract_ingress_rules.log
+      - process_modified_log.log
+      - env_vars/$ESB_ENVIRONMENT-ingress-rules.tfvars
+    expire_in: 1 week
+
+apply:
+  stage: apply
+  script:
+    - pip install pandas openpyxl
+    - python utility/extract_ingress_rules.py  $ESB_INGRESS_PROPS
+    - python utility/process_csv.py $ESB_ENVIRONMENT
+    - cd mydir
+    - sed -e "s/\$KEY/${TFKEYVPC}/g" ${ESB_CONFIG_FILE} > temp.conf
+    - terraform init -backend-config=temp.conf
+    - ESB_TFVARS_INGRESS_FILE="$CI_PROJECT_DIR/env_vars/$ESB_ENVIRONMENT-ingress-rules.tfvars"
+    # - cat $ESB_TFVARS_INGRESS_FILE
+    - terraform apply  --var-file="${ESB_TFVARS_FILE}" --var-file="$ESB_TFVARS_INGRESS_FILE" --auto-approve
+
+  environment:
+    name: $ESB_ENVIRONMENT
+  when: always
+  needs: [plan]
+  allow_failure: false
+  artifacts:
+    paths:
+      - modified_file.csv
+    expire_in: 1 week
