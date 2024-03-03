@@ -3,6 +3,11 @@ resource "aws_spot_instance_request" "cheap_worker" {
   instance_type = "t3.medium"
   #   spot_price    = "0.01" # Set your max price
 
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 20
+  }
+
   user_data = <<-EOF
                   #!/bin/bash
                   yum update -y
@@ -17,6 +22,7 @@ resource "aws_spot_instance_request" "cheap_worker" {
                   EOF
 
   iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
+  security_groups      = [aws_security_group.instance.name]
 
   tags = {
     Name = "SpotInstance"
