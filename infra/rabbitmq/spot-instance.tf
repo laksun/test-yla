@@ -10,15 +10,39 @@ resource "aws_spot_instance_request" "cheap_worker" {
 
   user_data = <<-EOF
                   #!/bin/bash
-                  yum update -y
-                  yum install -y https://packages.erlang-solutions.com/erlang-solutions-2.0-1.noarch.rpm
-                  yum install -y erlang
-                  rpm --import https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
-                  curl -s https://packagecloud.io/install/repositories/rabbitmq/rabbitmq-server/script.rpm.sh | bash
-                  yum install -y rabbitmq-server
-                  systemctl enable rabbitmq-server
-                  systemctl start rabbitmq-server
-                  rabbitmq-plugins enable rabbitmq_management
+
+                  # Update your system
+                  sudo yum update -y
+
+                  # Install Erlang, a dependency for RabbitMQ
+                  sudo yum install -y erlang
+
+                  # Add the RabbitMQ repository to your system
+                  sudo tee /etc/yum.repos.d/rabbitmq.repo <<EOF
+                  [rabbitmq-server]
+                  name=RabbitMQ Repository
+                  baseurl=https://packagecloud.io/rabbitmq/rabbitmq-server/el/7/\$basearch
+                  gpgcheck=1
+                  gpgkey=https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey
+                        https://www.rabbitmq.com/rabbitmq-release-signing-key.asc
+                  repo_gpgcheck=0
+                  enabled=1
+
+                  # Install RabbitMQ
+                  sudo yum install rabbitmq-server -y
+
+                  # Enable and start the RabbitMQ service
+                  sudo systemctl enable rabbitmq-server
+                  sudo systemctl start rabbitmq-server
+
+                  # Check the status of RabbitMQ service
+                  sudo systemctl status rabbitmq-server
+
+                  # Optionally, enable the RabbitMQ Management Console
+                  sudo rabbitmq-plugins enable rabbitmq_management
+
+                  # The RabbitMQ Management Console will be available at http://server_name:15672/
+
                   EOF
 
   iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
