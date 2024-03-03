@@ -13,7 +13,10 @@ resource "aws_spot_instance_request" "cheap_worker" {
                   yum install -y rabbitmq-server
                   systemctl enable rabbitmq-server
                   systemctl start rabbitmq-server
+                  rabbitmq-plugins enable rabbitmq_management
                   EOF
+
+  iam_instance_profile = aws_iam_instance_profile.ssm_profile.name
 
   tags = {
     Name = "SpotInstance"
