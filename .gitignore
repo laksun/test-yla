@@ -1,0 +1,4 @@
+infra/rabbitmq/terraform.tfstate.backup
+infra/rabbitmq/terraform.tfstate
+infra/rabbitmq/.terraform
+infra/rabbitmq/.terraform.lock.hcl
