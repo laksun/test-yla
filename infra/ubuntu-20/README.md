@@ -22,7 +22,7 @@ guest
 5. add user
 
 sudo rabbitmqctl add_user myuser mypassword
-sudo rabbitmqctl add_user ylaksun London44*.
+sudo rabbitmqctl add_user  
 
 6. add permissions
 
